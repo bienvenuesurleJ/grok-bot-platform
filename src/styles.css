@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --color-bg: var(--gb-bg);
+  --color-surface: var(--gb-surface);
+  --color-ink: var(--gb-ink);
+  --color-muted: var(--gb-muted);
+  --color-line: var(--gb-line);
+  --color-up: var(--gb-up);
+  --color-down: var(--gb-down);
+  --color-accent: var(--gb-accent);
+  --color-on-accent: var(--gb-on-accent);
+  --color-soft: var(--gb-soft);
+  --color-soft-down: var(--gb-soft-down);
+}
+
+:root {
+  --gb-bg: #f3f4f6;
+  --gb-surface: #ffffff;
+  --gb-ink: #14171c;
+  --gb-muted: #5c6570;
+  --gb-line: #e4e7ee;
+  --gb-up: #0b7a52;
+  --gb-down: #c0363e;
+  --gb-accent: #0b7a52;
+  --gb-on-accent: #f4fff8;
+  --gb-soft: #e7f6ef;
+  --gb-soft-down: #fdecee;
+  color-scheme: light;
+}
+
+html.dark {
+  --gb-bg: #101216;
+  --gb-surface: #181b21;
+  --gb-ink: #f3f5f7;
+  --gb-muted: #9aa3b2;
+  --gb-line: #2c323c;
+  --gb-up: #3dcc8c;
+  --gb-down: #ff6b74;
+  --gb-accent: #1f9d68;
+  --gb-on-accent: #f4fff8;
+  --gb-soft: #14281f;
+  --gb-soft-down: #2c171a;
+  color-scheme: dark;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html,
+  body {
+    background: var(--gb-bg);
+    color: var(--gb-ink);
+  }
+  body {
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    min-height: 100%;
+  }
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  header .gb-user > span:nth-child(2),
+  header .gb-user > button {
+    display: none;
+  }
+}
+
+@media print {
+  aside,
+  header,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}
