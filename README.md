@@ -1,20 +1,11 @@
 # Grok Bot
 
-Plateforme SaaS indépendante de trading simulé (Grok Bot).
+Plateforme de simulation Solana, indépendante des autres dépôts du compte.
 
-Ce dépôt est **nouveau et séparé** des autres projets du compte
-(`Ton-Plug-2-France`, `aurion-desk`, `encaisse`, etc.). Il ne partage ni
-Stripe, ni base, ni clients avec le premier site.
+Ouverture directe dans Safari, sans Vercel :
 
-## Lancer en local
+https://bienvenuesurlej.github.io/grok-bot-platform/
 
-```bash
-npm install
-npm run dev
-```
+Cette adresse sert le dossier `docs/` (GitHub Pages). Le terminal, les prix DexScreener et la simulation tournent dans le navigateur. Il n’y a pas de serveur, donc pas d’encaissement Stripe sur cette adresse.
 
-L’interface démarre sur le port 8080.
-
-Les clés Stripe, la base et l’authentification se configurent via les
-variables d’environnement du déploiement. Ne jamais y coller un Price ID
-du premier site.
+Le code serveur (compte, base, webhook) reste dans `src/` pour un hébergement Node. Il n’est pas ce que Safari ouvre.

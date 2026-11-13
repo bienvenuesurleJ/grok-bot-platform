@@ -1,0 +1,13 @@
+{
+  "name": "Grok Bot",
+  "short_name": "Grok Bot",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0b7a52",
+  "lang": "fr",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
