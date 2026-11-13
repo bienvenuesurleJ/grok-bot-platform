@@ -8,7 +8,7 @@ import { Button, Pill } from "./ui";
 type ShellData = Awaited<ReturnType<typeof getShell>>;
 
 const NAV = [
-  { to: "/app", label: "Tableau", exact: true },
+  { to: "/app", label: "Terminal", exact: true },
   { to: "/app/tokens", label: "Tokens" },
   { to: "/app/scanner", label: "Scanner" },
   { to: "/app/agents", label: "Agents" },
@@ -26,6 +26,8 @@ const NAV = [
 ] as const;
 
 export function AppShell() {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const terminal = path === "/app" || path === "/app/";
   const [data, setData] = useState<ShellData | null>(null);
   const [dark, setDark] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -44,7 +46,9 @@ export function AppShell() {
     setDark(next);
   }
 
-  return (
+  return terminal ? (
+    <Outlet />
+  ) : (
     <div className="min-h-screen bg-bg text-ink">
       <div className="md:grid md:grid-cols-[232px_1fr]">
         <aside className="no-print sticky top-0 hidden h-screen flex-col border-r border-line bg-surface md:flex">
@@ -118,7 +122,7 @@ export function AppShell() {
         </div>
       </div>
       <nav className="no-print fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-surface md:hidden">
-        <Tab to="/app" label="Tableau" />
+        <Tab to="/app" label="Terminal" />
         <Tab to="/app/scanner" label="Scanner" />
         <Tab to="/app/agents" label="Agents" />
         <Tab to="/app/positions" label="Positions" />

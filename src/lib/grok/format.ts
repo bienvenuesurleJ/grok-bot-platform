@@ -43,6 +43,20 @@ export function when(iso: string | null) {
   }).format(new Date(iso));
 }
 
+export function usdHero(n: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(n) ? n : 0);
+}
+
+export function hm(iso: string | null) {
+  if (!iso) return "—";
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+
 export function tone(n: number) {
   if (n > 0) return "text-up";
   if (n < 0) return "text-down";

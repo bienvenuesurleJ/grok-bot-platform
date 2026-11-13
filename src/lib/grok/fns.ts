@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { allows, assertFeature, assertStaff, audit, db, loadActor, platform } from "./data.server";
 import { confirmOrder, manualClose, runTick } from "./engine.server";
 import { fetchMarkets } from "./market";
+import { listReferences } from "./repos.server";
 import {
   iso,
   lastNightWindow,
@@ -47,6 +48,8 @@ export const getDashboard = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
     const actor = await loadActor(context.userId, context.email);
+    const { startEngineWorker } = await import("./worker.server");
+    startEngineWorker();
     return buildDashboard(actor);
   });
 
@@ -55,6 +58,8 @@ export const refreshEngine = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const actor = await loadActor(context.userId, context.email);
     assertFeature(actor, "simulation");
+    const { startEngineWorker } = await import("./worker.server");
+    startEngineWorker();
     const result = await runTick(actor, false);
     const dash = await buildDashboard(actor);
     return { ...result, dash };
@@ -1177,22 +1182,38 @@ async function buildDashboard(actor: Awaited<ReturnType<typeof loadActor>>) {
     agent: string;
     result: string | null;
     price_usd: number | null;
+    size_usd: number | null;
   }>`
-    select id, created_at, token_symbol, action, reason, agent, result, price_usd
-    from agent_decisions where user_id = ${actor.userId} order by created_at desc limit 8
+    select id, created_at, token_symbol, action, reason, agent, result, price_usd, size_usd
+    from agent_decisions where user_id = ${actor.userId} order by created_at desc limit 12
+  `;
+  const focused = await sql<{ agent: string; token_symbol: string | null; action: string }>`
+    select distinct on (agent) agent, token_symbol, action
+    from agent_decisions
+    where user_id = ${actor.userId}
+    order by agent, created_at desc
   `;
   const wallet = await sql<{ address: string; wallet_name: string }>`
     select address, wallet_name from wallet_connections where user_id = ${actor.userId} order by connected_at desc limit 1
   `;
   const agents = ["scanner", "safety", "analyst", "risk", "executor"].map((name) => {
     const row = runs.find((r) => r.agent === name);
+    const focus = focused.find((r) => r.agent === name);
     return {
       agent: name,
       status: row?.status ?? "idle",
       summary: row?.summary ?? "Pas encore exécuté.",
       at: iso(row?.started_at),
+      symbol: focus?.token_symbol ?? null,
+      action: focus?.action ?? null,
     };
   });
+  let repos: Awaited<ReturnType<typeof listReferences>> = [];
+  try {
+    repos = await listReferences();
+  } catch {
+    repos = [];
+  }
   return {
     allowed: allows(actor, "dashboard"),
     role: actor.role,
@@ -1247,8 +1268,10 @@ async function buildDashboard(actor: Awaited<ReturnType<typeof loadActor>>) {
       agent: d.agent,
       result: d.result,
       price: d.price_usd == null ? null : num(d.price_usd),
+      size: d.size_usd == null ? null : num(d.size_usd),
     })),
     agents,
+    repos,
     wallet: wallet[0] ? { address: wallet[0].address, name: wallet[0].wallet_name } : null,
   };
 }

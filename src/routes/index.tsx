@@ -24,7 +24,7 @@ function Landing() {
             <Link to="/login" className="h-11 rounded-xl bg-accent px-4 leading-[2.75rem] font-semibold text-on-accent">Connexion</Link>
           </SignedOut>
           <SignedIn>
-            <Link to="/app" className="h-11 rounded-xl bg-accent px-4 leading-[2.75rem] font-semibold text-on-accent">Ouvrir le bureau</Link>
+            <Link to="/app" className="h-11 rounded-xl bg-accent px-4 leading-[2.75rem] font-semibold text-on-accent">Ouvrir Grok Bot</Link>
           </SignedIn>
         </nav>
       </header>
@@ -38,7 +38,7 @@ function Landing() {
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <SignedIn>
-            <Link to="/app" className="h-12 rounded-xl bg-accent px-5 leading-[3rem] font-semibold text-on-accent">Entrer dans le tableau</Link>
+            <Link to="/app" className="h-12 rounded-xl bg-accent px-5 leading-[3rem] font-semibold text-on-accent">Ouvrir le terminal</Link>
           </SignedIn>
           <SignedOut>
             <Link to="/signup" className="h-12 rounded-xl bg-accent px-5 leading-[3rem] font-semibold text-on-accent">Créer un compte</Link>

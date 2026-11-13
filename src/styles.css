@@ -14,6 +14,12 @@
   --color-on-accent: var(--gb-on-accent);
   --color-soft: var(--gb-soft);
   --color-soft-down: var(--gb-soft-down);
+  --color-agent-scanner: #e07a1f;
+  --color-agent-safety: #d23b45;
+  --color-agent-analyst: #6b4de0;
+  --color-agent-risk: #2f6fed;
+  --color-agent-executor: #0b7a52;
+  --color-phantom: #ab9ff2;
 }
 
 :root {
@@ -65,6 +71,46 @@ html.dark {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
+}
+
+.gb-terminal {
+  --gb-bg: #f6f7f8;
+  --gb-surface: #ffffff;
+  --gb-ink: #14171c;
+  --gb-muted: #6b7280;
+  --gb-line: #e6e8ee;
+  --gb-up: #0b7a52;
+  --gb-down: #c0363e;
+  --gb-accent: #0b7a52;
+  --gb-on-accent: #f4fff8;
+  --gb-soft: #e7f6ef;
+  --gb-soft-down: #fdecee;
+  color-scheme: light;
+  background: var(--gb-bg);
+  color: var(--gb-ink);
+}
+
+@keyframes gb-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.gb-ticker {
+  animation: gb-marquee 32s linear infinite;
+}
+
+@keyframes gb-boot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gb-spin {
+  animation: gb-boot 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
