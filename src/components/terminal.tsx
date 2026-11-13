@@ -32,6 +32,7 @@ export function Terminal() {
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
   const [recap, setRecap] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   useEffect(() => {
     let cancel = false;
@@ -51,7 +52,8 @@ export function Terminal() {
         if (cancel) return;
         const trusted = detected ? await trustedAddress(detected.provider) : null;
         if (trusted) setLiveAddress(trusted);
-        setPhase(next.wallet && trusted ? "desk" : "phantom");
+        const staff = next.owner || next.role === "OWNER" || next.role === "SUPER_ADMIN" || next.role === "ADMIN";
+        setPhase(staff || (next.wallet && trusted) ? "desk" : "phantom");
         void refreshEngine()
           .then((res) => {
             if (!cancel) setDash(res.dash);
@@ -106,7 +108,8 @@ export function Terminal() {
           setLiveAddress(address);
           setPhase("desk");
         }}
-        onContinue={() => setPhase("desk")}
+        onContinue={() => (walletOpen ? setWalletOpen(false) : setPhase("desk"))}
+        dismissLabel={walletOpen ? "Retour à l’espace" : "Continuer en simulation, sans wallet"}
         onConnect={async () => {
           const detected = detectWallet();
           setHasPhantom(Boolean(detected));
@@ -136,7 +139,62 @@ export function Terminal() {
     );
   }
 
-  return <Desk dash={dash} report={report} sol={sol} liveAddress={liveAddress} recap={recap} setRecap={setRecap} />;
+  return (
+    <>
+      <Desk
+        dash={dash}
+        report={report}
+        sol={sol}
+        liveAddress={liveAddress}
+        recap={recap}
+        setRecap={setRecap}
+        onOpenWallet={() => {
+          setConnectError("");
+          setWalletOpen(true);
+        }}
+      />
+      {walletOpen ? (
+        <div className="fixed inset-0 z-40 overflow-auto bg-surface">
+          <PhantomScreen
+            dash={dash}
+            hasPhantom={hasPhantom}
+            liveAddress={liveAddress}
+            sol={sol}
+            connecting={connecting}
+            connectError={connectError}
+            dismissLabel="Retour à l’espace"
+            onConnected={() => setWalletOpen(false)}
+            onContinue={() => setWalletOpen(false)}
+            onConnect={async () => {
+              const detected = detectWallet();
+              setHasPhantom(Boolean(detected));
+              if (!detected || detected.name !== "Phantom") {
+                setConnectError("Phantom n’est pas injecté dans ce navigateur. CONNECTED n’est pas affiché.");
+                return;
+              }
+              setConnecting(true);
+              setConnectError("");
+              try {
+                const res = await detected.provider.connect();
+                const pub = res.publicKey.toString();
+                await connectWallet({ data: { address: pub, name: "Phantom" } });
+                const bal = await walletBalance({ data: { address: pub } });
+                setSol(bal.sol);
+                setLiveAddress(pub);
+                setDash(await getDashboard());
+                setWalletOpen(false);
+              } catch (err) {
+                setLiveAddress(null);
+                setConnectError(err instanceof Error ? err.message : "Connexion Phantom refusée");
+              } finally {
+                setConnecting(false);
+              }
+            }}
+          />
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 function Boot({ step }: { step: number }) {
@@ -171,6 +229,7 @@ function PhantomScreen({
   onConnect,
   onConnected,
   onContinue,
+  dismissLabel,
 }: {
   dash: Dashboard;
   hasPhantom: boolean;
@@ -181,6 +240,7 @@ function PhantomScreen({
   onConnect: () => Promise<void>;
   onConnected: (address: string) => void;
   onContinue: () => void;
+  dismissLabel: string;
 }) {
   const connected = Boolean(liveAddress);
   return (
@@ -228,7 +288,7 @@ function PhantomScreen({
           </button>
         )}
         <button type="button" className="mt-3 h-11 text-sm text-muted" onClick={onContinue}>
-          Continuer en simulation, sans wallet
+          {dismissLabel}
         </button>
       </div>
     </Screen>
@@ -242,6 +302,7 @@ function Desk({
   liveAddress,
   recap,
   setRecap,
+  onOpenWallet,
 }: {
   dash: Dashboard;
   report: Report | null;
@@ -249,11 +310,11 @@ function Desk({
   liveAddress: string | null;
   recap: boolean;
   setRecap: (v: boolean) => void;
+  onOpenWallet: () => void;
 }) {
   const mult = dash.initial > 0 ? dash.equity / dash.initial : null;
   const points = dash.series.length === 1 ? [dash.series[0]!, { ...dash.series[0]!, t: dash.series[0]!.t }] : dash.series;
   const walletOn = Boolean(liveAddress);
-  const short = walletOn ? `${liveAddress!.slice(0, 4)}…${liveAddress!.slice(-4)}` : null;
   return (
     <Screen>
       <div className="px-4 pb-8 pt-4">
@@ -270,9 +331,9 @@ function Desk({
               <span className={`h-2 w-2 rounded-full ${dash.live === "LIVE" ? "bg-up" : dash.live === "HALT" ? "bg-down" : "bg-line"}`} />
               {dash.live}
             </p>
-            <p className="mt-1 text-xs text-muted">
-              {walletOn ? `Phantom ${short}` : "Phantom non connecté"}
-            </p>
+            <button type="button" className="mt-1 text-xs text-muted" onClick={onOpenWallet}>
+              {walletOn ? "Gérer le wallet" : "Ajouter un wallet"}
+            </button>
             {walletOn && sol != null ? <p className="num text-xs">{sol.toLocaleString("fr-FR", { maximumFractionDigits: 4 })} SOL</p> : null}
           </div>
         </header>

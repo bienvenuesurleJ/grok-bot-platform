@@ -273,6 +273,7 @@ async function connectPhantom() {
     liveAddress = res.publicKey.toString();
     state.wallet = liveAddress;
     save();
+    sheet = null;
     view = "desk";
     paint();
     readSol(liveAddress);
@@ -404,7 +405,7 @@ function desk() {
       </div>
       <div style="text-align:right">
         <div class="live"><span class="dot" style="background:${live === "LIVE" ? "var(--up)" : "var(--down)"}"></span> ${live}</div>
-        <div class="muted" style="font-size:12px;margin-top:4px">${liveAddress ? "Phantom " + esc(liveAddress.slice(0, 4) + "…" + liveAddress.slice(-4)) : "Phantom non connecté"}</div>
+        <button type="button" id="wallet" class="muted" style="font-size:12px;margin-top:4px;text-align:right">${liveAddress ? "Phantom " + esc(liveAddress.slice(0, 4) + "…" + liveAddress.slice(-4)) : "Ajouter un wallet"}</button>
         ${liveAddress && sol != null ? `<div class="num" style="font-size:12px">${esc(sol.toLocaleString("fr-FR", { maximumFractionDigits: 4 }))} SOL</div>` : ""}
       </div>
     </header>
@@ -435,6 +436,7 @@ function desk() {
     <button class="btn btn-line" id="bureau" style="margin-top:8px">Bureau · offres et réglages</button>
     <p class="note">Ouvert depuis GitHub Pages, dans Safari. Pas de serveur : le moteur tourne dans cet onglet, les chiffres restent sur cet appareil. Les trades sont simulés. Aucune signature Solana n’est envoyée.</p>
     ${sheet === "recap" ? recap(b, mult) : ""}
+    ${sheet === "wallet" ? walletSheet() : ""}
     ${sheet === "bureau" ? bureau() : ""}
   </div>`;
 }
@@ -458,6 +460,36 @@ function recap(b, mult) {
     <p class="muted">Session enregistrée sur cet appareil. Pas une performance de la vidéo.</p>
     ${rows.map(([k, v]) => `<div class="kvs"><span class="muted">${esc(k)}</span><b class="num">${esc(v)}</b></div>`).join("")}
     <button class="btn btn-green" id="close" style="margin-top:12px">Fermer</button></div></div>`;
+}
+
+function walletSheet() {
+  const connected = Boolean(liveAddress);
+  return `<div class="sheet"><div>
+    <h2 style="font-size:18px">Wallet</h2>
+    <p class="muted">Optionnel. La lecture se fait ici, dans l’espace. Rien n’est demandé à l’ouverture.</p>
+    <div class="card" style="margin-top:12px">
+      <div class="muted" style="font-size:12px">Adresse publique</div>
+      <div class="num" style="font-size:12px;margin-top:6px;word-break:break-all">${esc(liveAddress || "aucune")}</div>
+      <div class="muted" style="font-size:12px;margin-top:8px">Solde réel : ${sol == null ? "pas lu" : esc(sol.toLocaleString("fr-FR", { maximumFractionDigits: 4 })) + " SOL"}</div>
+    </div>
+    ${connectError ? `<p class="down" style="font-size:14px">${esc(connectError)}</p>` : ""}
+    ${phantom() ? "" : `<p class="muted">Phantom n’est pas injecté dans ce navigateur. Aucune adresse inventée.</p>`}
+    ${connected
+      ? `<button class="btn btn-line" id="forget" style="margin-top:12px">Retirer le wallet de cet espace</button>`
+      : `<button class="btn btn-ink" id="connect" style="margin-top:12px" ${phantom() ? "" : "disabled"}>Connecter Phantom</button>`}
+    <button class="ghost" id="close">Fermer</button>
+  </div></div>`;
+}
+
+function forgetWallet() {
+  liveAddress = null;
+  sol = null;
+  state.wallet = null;
+  connectError = "";
+  const p = phantom();
+  if (p && typeof p.disconnect === "function") p.disconnect().catch(() => undefined);
+  save();
+  paint();
 }
 
 function bureau() {
@@ -500,9 +532,9 @@ function legal() {
 
 function bind() {
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on("wallet", () => { connectError = ""; sheet = "wallet"; paint(); });
   on("connect", () => connectPhantom());
-  on("go", () => { view = "desk"; paint(); tick(); });
-  on("skip", () => { view = "desk"; paint(); tick(); });
+  on("forget", () => forgetWallet());
   on("recap", () => { sheet = "recap"; paint(); });
   on("bureau", () => { sheet = "bureau"; paint(); });
   on("close", () => { sheet = null; paint(); });
@@ -557,6 +589,10 @@ async function checkRepos() {
 
 view = "boot";
 paint();
-setTimeout(() => { view = "phantom"; paint(); }, 1400);
+if (state.wallet) {
+  liveAddress = state.wallet;
+  readSol(state.wallet);
+}
+setTimeout(() => { view = "desk"; paint(); tick(); }, 900);
 setInterval(() => { if (view === "desk") tick(); }, 50000);
 checkRepos();
