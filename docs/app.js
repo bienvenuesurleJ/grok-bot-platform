@@ -215,7 +215,7 @@ async function tick() {
         if (state.positions.some((p) => p.address === m.address)) return false;
         if (assess(m).blocked) return false;
         const a = analyze(m);
-        return m.changeH1 >= 1.2 && a.score >= 62;
+        return m.changeH1 >= 0.6 && a.score >= 58;
       });
       if (pick) buy(pick, sized.usd, "Momentum majeur. " + analyze(pick).reason);
       else decide("executor", "HOLD", null, null, "rien à faire", "Aucune entrée majeure ne passe Safety et Analyst. Simulation. Aucune transaction blockchain.");
@@ -232,7 +232,7 @@ async function tick() {
     save();
   } finally {
     ticking = false;
-    if (view === "desk" || view === "bureau") paint();
+    if (view !== "boot") paint();
   }
 }
 
@@ -337,9 +337,16 @@ function paint() {
 
 function render() {
   if (view === "boot") return boot();
-  if (view === "phantom") return phantomScreen();
   if (view === "legal") return legal();
-  return desk();
+  if (view === "scan") return scan() + nav();
+  if (view === "positions") return positions() + nav();
+  if (view === "journal") return journal() + nav();
+  if (view === "admin") return adminPage() + nav();
+  return desk() + nav();
+}
+function nav() {
+  const items = [["desk", "Terminal"], ["scan", "Scanner"], ["positions", "Positions"], ["journal", "Journal"], ["admin", "Admin"]];
+  return `<nav class="nav">${items.map(([id, label]) => `<button type="button" data-nav="${id}" class="${view === id ? "on" : ""}">${label}</button>`).join("")}</nav>`;
 }
 
 function boot() {
@@ -422,6 +429,8 @@ function desk() {
       <div><dt class="muted">Multiplicateur</dt><dd class="num ${mult > 1 ? "up" : mult < 1 ? "down" : ""}"><b>${mult == null ? "—" : esc(multLabel(mult))}</b></dd></div>
     </dl>
     ${chart(state.snaps)}
+    <h2>Positions ouvertes</h2>
+    ${positionCards()}
     ${state.emergency ? `<p class="down" style="font-size:12px">Arrêt des nouveaux achats. Les sorties de stop restent possibles.</p>` : ""}
     <h2 class="muted">Repositories</h2>
     ${REPOS.map((r) => `<article class="repo"><div class="row"><b>${esc(r.slug)}</b><span>${esc(r.state)}</span></div><div class="muted" style="margin-top:4px">${esc(r.sync)}</div><div class="muted">${state.reposChecked ? "contrôlé " + esc(when(state.reposChecked)) : "contrôle au chargement"}</div></article>`).join("")}
@@ -433,12 +442,67 @@ function desk() {
     <div class="row"><h2 style="margin:0">GROK CORE · DECISIONS</h2><span class="muted" style="font-size:12px">${live === "LIVE" ? "sync" : "en attente"}</span></div>
     ${state.decisions.slice(0, 8).map((d) => `<div class="dec"><div class="row"><span><span class="num muted">${esc(hm(d.at))}</span> <b class="${d.action === "BUY" ? "up" : d.action === "SELL" ? "down" : ""}">${esc(d.action)}</b> ${esc(d.symbol || "—")} <span class="num muted">${d.size == null ? "" : esc(usd(d.size))}</span></span><span class="muted">${esc(d.agent)}</span></div><div class="muted">${esc(d.result)} · ${esc(d.reason)}</div></div>`).join("") || `<p class="muted" style="font-size:12px">Aucune décision. Le premier passage lit DexScreener.</p>`}
     <button class="btn btn-line" id="recap" style="margin-top:16px">Night recap</button>
-    <button class="btn btn-line" id="bureau" style="margin-top:8px">Bureau · offres et réglages</button>
-    <p class="note">Ouvert depuis GitHub Pages, dans Safari. Pas de serveur : le moteur tourne dans cet onglet, les chiffres restent sur cet appareil. Les trades sont simulés. Aucune signature Solana n’est envoyée.</p>
+    <p class="note">Simulation sur prix réels. Aucune transaction blockchain n’est envoyée. Le carnet reste dans ce navigateur.</p>
     ${sheet === "recap" ? recap(b, mult) : ""}
     ${sheet === "wallet" ? walletSheet() : ""}
     ${sheet === "bureau" ? bureau() : ""}
   </div>`;
+}
+
+function positionCards() {
+  if (!state.positions.length) return `<p class="muted" style="font-size:12px">Aucune position. Le moteur n’achète que si un majeur passe Safety et Analyst.</p>`;
+  return state.positions.map((p) => {
+    const pnl = ((p.mark || p.avg) - p.avg) * p.qty;
+    return `<article class="repo"><div class="row"><b>${esc(p.symbol)}</b><span class="num ${tone(pnl)}">${pnl > 0 ? "+" : ""}${esc(usd(pnl))}</span></div><div class="muted num">entrée ${esc(usd(p.avg, p.avg >= 1 ? 2 : 4))} · cours ${esc(usd(p.mark || p.avg, p.avg >= 1 ? 2 : 4))}</div><button class="btn btn-line" data-close="${esc(p.address)}" style="margin-top:8px;height:40px">Clôturer</button></article>`;
+  }).join("");
+}
+function pageHead(title, text) {
+  return `<div class="pad"><h1 style="font-size:22px">${title}</h1><p class="muted">${text}</p>`;
+}
+function scan() {
+  const rows = state.markets.filter((m) => /^[A-Za-z0-9$]{2,12}$/.test(m.symbol)).slice(0, 20);
+  return `${pageHead("Scanner", "Cours DexScreener en direct.")}
+    ${state.marketError ? `<p class="down">${esc(state.marketError)}. Aucun cours inventé.</p>` : ""}
+    ${rows.map((m) => {
+      const s = assess(m);
+      const a = analyze(m);
+      return `<article class="repo"><div class="row"><b>${esc(m.symbol)}</b><span class="num ${tone(m.changeH24)}">${esc(pct(m.changeH24))}</span></div><div class="num">${esc(usd(m.priceUsd, m.priceUsd >= 1 ? 2 : 6))}</div><div class="muted">liquidité ${esc(usd(m.liquidityUsd, 0))} · score ${a.score} · ${s.blocked ? "bloqué" : "passable"}</div><div class="muted">${esc(s.reasons[0] || "")}</div></article>`;
+    }).join("") || `<p class="muted">Lecture des prix…</p>`}
+  </div>${sheet === "wallet" ? walletSheet() : ""}`;
+}
+function positions() {
+  return `${pageHead("Positions", "Valeur marquée au dernier cours lu.")}${positionCards()}</div>`;
+}
+function journal() {
+  const rows = [...state.trades].reverse();
+  return `${pageHead("Journal", "Exécutions simulées de cet appareil.")}
+    ${rows.map((t) => `<article class="dec"><div class="row"><span><b class="${t.side === "buy" ? "up" : "down"}">${esc(t.side.toUpperCase())}</b> ${esc(t.symbol)} <span class="num">${esc(usd(t.usd))}</span></span><span class="num muted">${esc(hm(t.at))}</span></div><div class="muted">frais ${esc(usd(t.fee))} ${t.pnl == null ? "" : "· PnL " + esc(usd(t.pnl))}</div></article>`).join("") || `<p class="muted">Aucun trade pour l’instant.</p>`}
+  </div>`;
+}
+function adminPage() {
+  const r = state.risk;
+  return `<div class="pad">
+    <h1 style="font-size:22px">Admin</h1>
+    <p class="muted">Espace propriétaire. Le wallet se relie ici, jamais à l’ouverture.</p>
+    <button class="btn btn-line" id="wallet" style="margin-top:12px">${liveAddress ? "Wallet relié" : "Ajouter un wallet"}</button>
+    <h2>Offres</h2>
+    <div class="card"><b>GROKBOT_STARTER</b><div class="muted">Terminal, scanner, simulation, journal.</div></div>
+    <div class="card" style="margin-top:8px"><b>GROKBOT_PRO</b><div class="muted">Agents, alertes, wallet en lecture.</div></div>
+    <div class="card" style="margin-top:8px"><b>GROKBOT_PREMIUM</b><div class="muted">Limites, rapport, automatisation préparée.</div></div>
+    <div class="card" style="margin-top:8px"><b>GROKBOT_LIFETIME</b><div class="muted">Accès unique. Tarif non publié.</div></div>
+    <h2>Limites</h2>
+    ${field("maxPosition", "Taille max (USD)", r.maxPosition)}
+    ${field("dailyLoss", "Perte max du jour (USD)", r.dailyLoss)}
+    ${field("maxOpen", "Positions max", r.maxOpen)}
+    <button class="btn ${state.emergency ? "btn-green" : "btn-ink"}" id="stop" style="margin-top:14px">${state.emergency ? "Reprendre les achats" : "STOP achats"}</button>
+    <button class="btn btn-line" id="export" style="margin-top:8px">Exporter le journal</button>
+    <button class="btn btn-line" id="wipe" style="margin-top:8px">Effacer ce navigateur</button>
+    <a class="btn btn-line" id="legal" href="#risques" style="margin-top:8px">Risques et mentions</a>
+  </div>${sheet === "wallet" ? walletSheet() : ""}`;
+}
+
+function bureau() {
+  return "";
 }
 
 function recap(b, mult) {
@@ -492,27 +556,6 @@ function forgetWallet() {
   paint();
 }
 
-function bureau() {
-  const r = state.risk;
-  return `<div class="sheet"><div>
-    <h2 style="font-size:18px">Bureau</h2>
-    <p class="muted">Logiciel de simulation. Ce n’est pas un service d’investissement. Stripe n’encaisse rien sur GitHub Pages : les tarifs ne sont pas publiés (0 € n’est pas un prix).</p>
-    <div class="card"><b>GROKBOT_STARTER</b><div class="muted">Tableau, scanner, simulation, historique.</div></div>
-    <div class="card" style="margin-top:8px"><b>GROKBOT_PRO</b><div class="muted">Stratégies, agents, alertes, wallet en lecture.</div></div>
-    <div class="card" style="margin-top:8px"><b>GROKBOT_PREMIUM</b><div class="muted">Limites, rapport, préparation d’automatisation.</div></div>
-    <div class="card" style="margin-top:8px"><b>GROKBOT_LIFETIME</b><div class="muted">Accès unique, périmètre fixé hors de cette page.</div></div>
-    <p class="muted">Le compte OWNER gratuit est appliqué sur le serveur du produit, pas dans cette page statique. Ici, la simulation est ouverte dans votre navigateur.</p>
-    <h2 style="margin-top:16px">Limites de risque</h2>
-    ${field("maxPosition", "Taille max (USD)", r.maxPosition)}
-    ${field("dailyLoss", "Perte max du jour (USD)", r.dailyLoss)}
-    ${field("maxOpen", "Positions max", r.maxOpen)}
-    <button class="btn ${state.emergency ? "btn-green" : "btn-ink"}" id="stop" style="margin-top:14px">${state.emergency ? "Reprendre les achats" : "STOP achats"}</button>
-    <button class="btn btn-line" id="export" style="margin-top:8px">Exporter le journal</button>
-    <button class="btn btn-line" id="wipe" style="margin-top:8px">Effacer ce navigateur</button>
-    <a class="btn btn-line" id="legal" href="#risques" style="margin-top:8px">Risques et mentions</a>
-    <button class="ghost" id="close">Fermer</button>
-  </div></div>`;
-}
 function field(id, label, value) {
   return `<label for="${id}">${esc(label)}</label><input id="${id}" type="number" min="0" step="1" value="${esc(value)}" />`;
 }
@@ -530,11 +573,27 @@ function legal() {
   </div>`;
 }
 
+function closeAt(address) {
+  const pos = state.positions.find((p) => p.address === address);
+  if (!pos) return;
+  const known = state.markets.find((m) => m.address === address);
+  const m = known || { address, symbol: pos.symbol, priceUsd: pos.mark || pos.avg };
+  sell(pos, m, "clôture depuis l’espace");
+  save();
+  paint();
+}
+
 function bind() {
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   on("wallet", () => { connectError = ""; sheet = "wallet"; paint(); });
   on("connect", () => connectPhantom());
   on("forget", () => forgetWallet());
+  document.querySelectorAll("[data-nav]").forEach((el) => {
+    el.onclick = () => { view = el.getAttribute("data-nav"); sheet = null; paint(); };
+  });
+  document.querySelectorAll("[data-close]").forEach((el) => {
+    el.onclick = () => closeAt(el.getAttribute("data-close"));
+  });
   on("recap", () => { sheet = "recap"; paint(); });
   on("bureau", () => { sheet = "bureau"; paint(); });
   on("close", () => { sheet = null; paint(); });
@@ -584,7 +643,7 @@ async function checkRepos() {
   }
   state.reposChecked = Date.now();
   save();
-  if (view === "desk") paint();
+  if (view !== "boot") paint();
 }
 
 view = "boot";
@@ -594,5 +653,5 @@ if (state.wallet) {
   readSol(state.wallet);
 }
 setTimeout(() => { view = "desk"; paint(); tick(); }, 900);
-setInterval(() => { if (view === "desk") tick(); }, 50000);
+setInterval(() => { if (view !== "boot") tick(); }, 45000);
 checkRepos();
